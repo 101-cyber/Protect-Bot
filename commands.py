@@ -1,122 +1,24 @@
 import discord
 from discord.ext import commands
 from discord.ui import Button, View
-from config import bot, message_logs
-import time
 import random
 import asyncio
 
-# Événement: Ban automatique si un lien est envoyé ou si quelqu'un fait du spam
-@bot.event
-async def on_message(message):
-    if message.author.bot:
-        return
-
-    # Anti-spam: Si un utilisateur envoie plus de 3 messages en 5 secondes
-    now = time.time()
-    message_logs[message.author.id].append(now)
-    message_logs[message.author.id] = [
-        timestamp for timestamp in message_logs[message.author.id] if now - timestamp <= 5
-    ]
-
-    if len(message_logs[message.author.id]) > 3:
-        await message.guild.ban(message.author, reason="Spam détecté")
-        await message.channel.send(f"🚫 {message.author.mention} a été banni pour spam.")
-        return
-
-    # Ban si un utilisateur mentionne @everyone sans permission admin
-    if "@everyone" in message.content and not message.author.guild_permissions.administrator:
-        await message.delete()
-        await message.guild.ban(message.author, reason="Mention non autorisée de @everyone")
-        await message.channel.send(f"🚫 {message.author.mention} a été banni pour mention non autorisée de @everyone.")
-        return
-
-    # Ban automatique pour l'envoi de liens
-    if "http://" in message.content or "https://" in message.content:
-        await message.delete()
-        await message.guild.ban(message.author, reason="Envoi de lien interdit")
-        await message.channel.send(f"{message.author.mention} a été banni pour avoir envoyé un lien.")
-        return
-
-    await bot.process_commands(message)
-
-# Commande: +lock
-@bot.command()
-@commands.has_permissions(manage_roles=True)
-async def lock(ctx):
-    role_name = "+"
-    guild = ctx.guild
-    role = discord.utils.get(guild.roles, name=role_name)
-
-    if role is None:
-        await ctx.send(f"Le rôle `{role_name}` n'existe pas.")
-        return
-
-    overwrites = {
-        guild.default_role: discord.PermissionOverwrite(send_messages=False),
-        role: discord.PermissionOverwrite(send_messages=True),
-    }
-
-    for channel in guild.channels:
-        await channel.set_permissions(target=guild.default_role, overwrite=overwrites[guild.default_role])
-        await channel.set_permissions(target=role, overwrite=overwrites[role])
-
-    await ctx.send("🔒 Salon verrouillé pour les utilisateurs sans le rôle `+`.")
-
-# Commande: +unlock
-@bot.command()
-@commands.has_permissions(manage_roles=True)
-async def unlock(ctx):
-    guild = ctx.guild
-
-    for channel in guild.channels:
-        await channel.set_permissions(target=guild.default_role, overwrite=None)
-
-    await ctx.send("🔓 Salon débloqué pour tout le monde.")
-
-# Commande: +ban
-@bot.command()
-@commands.has_permissions(ban_members=True)
-async def ban(ctx, member: discord.Member, *, reason="Aucune raison spécifiée"):
-    try:
-        await member.ban(reason=reason)
-        await ctx.send(f"🚫 {member.mention} a été banni définitivement. Raison : {reason}")
-    except discord.Forbidden:
-        await ctx.send("❌ Je n'ai pas les permissions nécessaires pour bannir cet utilisateur.")
-    except discord.HTTPException as e:
-        await ctx.send(f"⚠ Une erreur est survenue lors du bannissement : {e}")
-
-# Commande: +reset
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-async def reset(ctx):
-    try:
-        await ctx.channel.purge()
-        await ctx.send("🧹 Tous les messages de ce salon ont été supprimés.", delete_after=5)
-    except discord.Forbidden:
-        await ctx.send("❌ Je n'ai pas les permissions nécessaires pour supprimer les messages.")
-    except discord.HTTPException as e:
-        await ctx.send(f"⚠ Une erreur est survenue lors de la suppression : {e}")
-
-# Commande: +list
-@bot.command()
-async def list(ctx):
-    """Liste toutes les commandes disponibles."""
-    commands_list = (
-        "Voici les commandes disponibles :\n"
-        "🔒 `+lock` : Verrouille les salons pour les utilisateurs sans le rôle `+`.\n"
-        "🔓 `+unlock` : Déverrouille les salons pour tout le monde.\n"
-        "🚫 `+ban` : Bannit un utilisateur définitivement.\n"
-        "🧹 `+reset` : Supprime tous les messages du salon.\n"
-        "🎉 `+giveaway` : Lance un giveaway en précisant le nombre de gagnants, la récompense et la durée (en minutes)."
-    )
-    await ctx.send(commands_list)
+from config import bot
 
 # Commande: +giveaway
 @bot.command()
 @commands.has_permissions(manage_messages=True)
-async def giveaway(ctx, num_winners: int, prize: str, duration: int):
+async def giveaway(ctx, num_winners: str, prize: str, duration: str):
     """Lance un giveaway directement en précisant [gagnants] [lot] [durée (en minutes)]."""
+    # Vérification des arguments
+    try:
+        num_winners = int(num_winners)
+        duration = int(duration)
+    except ValueError:
+        await ctx.send("❌ Les arguments doivent être des nombres valides : `[gagnants] [lot] [durée en minutes]`.")
+        return
+
     if num_winners <= 0 or duration <= 0:
         await ctx.send("❌ Le nombre de gagnants et la durée doivent être des nombres positifs.")
         return
@@ -152,6 +54,16 @@ class GiveawayView(View):
             self.participants.append(interaction.user.id)
             await interaction.response.send_message("✅ Vous avez été inscrit avec succès !", ephemeral=True)
 
+    @discord.ui.button(label="Nouvelle Reroll 🎉", style=discord.ButtonStyle.green)
+    async def reroll(self, interaction: discord.Interaction, button: Button):
+        """Tire un gagnant supplémentaire (reroll) parmi les participants."""
+        if len(self.participants) == 0:
+            await interaction.response.send_message("⚠️ Il n'y a pas de participants pour effectuer un reroll.", ephemeral=True)
+            return
+        
+        winner = random.choice(self.participants)
+        await interaction.response.send_message(f"🎉 Nouveau gagnant du reroll : <@{winner}> !", ephemeral=True)
+
     async def on_timeout(self):
         if len(self.participants) == 0:
             await self.message.edit(content="🎉 Giveaway terminé ! Aucun participant. 😢", view=None)
@@ -165,3 +77,17 @@ class GiveawayView(View):
             f"**Gagnants** : {', '.join(winners)}\n\nFélicitations !"
         )
         await self.message.edit(content=result_message, embed=None, view=None)
+
+# Commande: +reroll
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def reroll(ctx):
+    """Tire un gagnant au hasard parmi les participants d'un giveaway actif."""
+    # Vérifiez si un giveaway actif est en cours (vous pouvez améliorer cette logique selon votre implémentation)
+    giveaway_view = GiveawayView.get_active_giveaway(ctx.guild)  # Supposons que vous ayez une méthode pour récupérer un giveaway actif
+    if not giveaway_view or len(giveaway_view.participants) == 0:
+        await ctx.send("❌ Aucun giveaway actif ou aucun participant pour effectuer un reroll.")
+        return
+    
+    winner = random.choice(giveaway_view.participants)
+    await ctx.send(f"🎉 Nouveau gagnant du reroll : <@{winner}> !")
