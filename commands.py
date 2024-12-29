@@ -1,48 +1,8 @@
 import discord
 from discord.ext import commands
-from discord.ui import Button, View
 import random
-import time
-
-from config import bot, message_logs
-
-# Événement: Ban automatique si un lien est envoyé ou si quelqu'un fait du spam
-@bot.event
-async def on_message(message):
-    if message.author.bot:
-        return
-
-    # Anti-spam: Si un utilisateur envoie plus de 3 messages en 5 secondes
-    now = time.time()
-    message_logs[message.author.id].append(now)
-    message_logs[message.author.id] = [
-        timestamp for timestamp in message_logs[message.author.id] if now - timestamp <= 5
-    ]
-
-    if len(message_logs[message.author.id]) > 3:
-        await message.guild.ban(message.author, reason="Spam détecté")
-        await message.channel.send(f"🚫 {message.author.mention} a été banni pour spam.")
-        return
-
-    # Ban si un utilisateur mentionne @everyone sans permission admin
-    if "@everyone" in message.content and not message.author.guild_permissions.administrator:
-        await message.delete()
-        await message.guild.ban(message.author, reason="Mention non autorisée de @everyone")
-        await message.channel.send(f"🚫 {message.author.mention} a été banni pour mention non autorisée de @everyone.")
-        return
-
-    # Ban automatique pour l'envoi de liens
-    if "http://" in message.content or "https://" in message.content:
-        await message.delete()
-        await message.guild.ban(message.author, reason="Envoi de lien interdit")
-        await message.channel.send(f"{message.author.mention} a été banni pour avoir envoyé un lien.")
-        return
-
-    await bot.process_commands(message)
 
 # Commande: +giveaway
-@bot.command()
-@commands.has_permissions(manage_messages=True)
 async def giveaway(ctx, num_winners: int, prize: str, duration: int):
     """Lance un giveaway directement en précisant [gagnants] [lot] [durée (en minutes)]."""
     if num_winners <= 0 or duration <= 0:
@@ -64,7 +24,7 @@ async def giveaway(ctx, num_winners: int, prize: str, duration: int):
     view = GiveawayView(ctx.author.id, num_winners, prize, duration_seconds)
     view.message = await ctx.send(embed=embed, view=view)
 
-class GiveawayView(View):
+class GiveawayView(discord.ui.View):
     def __init__(self, author_id, num_winners, prize, duration_seconds):
         super().__init__(timeout=duration_seconds)
         self.author_id = author_id
@@ -73,7 +33,7 @@ class GiveawayView(View):
         self.participants = []
 
     @discord.ui.button(label="Participer 🎟️", style=discord.ButtonStyle.blurple)
-    async def join_giveaway(self, interaction: discord.Interaction, button: Button):
+    async def join_giveaway(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id in self.participants:
             await interaction.response.send_message("⚠️ Vous êtes déjà inscrit !", ephemeral=True)
         else:
@@ -95,15 +55,11 @@ class GiveawayView(View):
         await self.message.edit(content=result_message, embed=None, view=None)
 
 # Commande: +reroll
-@bot.command()
-@commands.has_permissions(manage_messages=True)
 async def reroll(ctx):
     """Tire un gagnant au hasard parmi les participants d'un giveaway actif."""
-    # À compléter si vous avez un système de suivi des giveaways actifs
     await ctx.send("🎉 Fonctionnalité de reroll en cours de mise à jour !")
 
 # Commande: +list
-@bot.command()
 async def list(ctx):
     """Affiche la liste des commandes disponibles."""
     embed = discord.Embed(
@@ -112,7 +68,50 @@ async def list(ctx):
 
         **+giveaway [gagnants] [lot] [durée en minutes]** : Lance un giveaway.
         **+reroll** : Tire un gagnant supplémentaire pour un giveaway.
+        **+lock** : Verrouille le salon pour que seuls les membres avec un rôle spécifique puissent parler.
+        **+unlock** : Déverrouille le salon pour que tout le monde puisse parler.
+        **+bl [utilisateur]** : Banni l'utilisateur de façon permanente.
+        **+wl [utilisateur]** : Déban l'utilisateur.
+        **+reset** : Supprime tous les messages d'un salon.
         """,
         color=discord.Color.blue()
     )
     await ctx.send(embed=embed)
+
+# Commande: +lock
+async def lock(ctx):
+    """Verrouille le salon, empêchant les membres sans le rôle spécifié de parler."""
+    role = discord.utils.get(ctx.guild.roles, name="+")
+    if role:
+        await ctx.channel.set_permissions(role, send_messages=True)
+        for member in ctx.guild.members:
+            if role not in member.roles:
+                await ctx.channel.set_permissions(member, send_messages=False)
+        await ctx.send(f"Le salon a été verrouillé. Seuls les membres avec le rôle `{role.name}` peuvent parler.")
+    else:
+        await ctx.send("Le rôle spécifié n'existe pas dans ce serveur.")
+
+# Commande: +unlock
+async def unlock(ctx):
+    """Déverrouille le salon, permettant à tous de parler."""
+    for member in ctx.guild.members:
+        await ctx.channel.set_permissions(member, send_messages=True)
+    await ctx.send("Le salon a été déverrouillé. Tout le monde peut maintenant parler.")
+
+# Commande: +bl
+async def bl(ctx, member: discord.Member):
+    """Ban permanent l'utilisateur mentionné."""
+    await member.ban(reason="Ban permanent")
+    await ctx.send(f"{member.mention} a été banni de manière permanente.")
+
+# Commande: +wl
+async def wl(ctx, member: discord.Member):
+    """Déban l'utilisateur mentionné."""
+    await ctx.guild.unban(member)
+    await ctx.send(f"{member.mention} a été débanni.")
+
+# Commande: +reset
+async def reset(ctx):
+    """Supprime tous les messages d'un salon."""
+    await ctx.channel.purge()
+    await ctx.send("🧹 Tous les messages du salon ont été supprimés !")
