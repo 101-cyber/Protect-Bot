@@ -1,39 +1,68 @@
+import discord
+from discord.ext import commands
 import os
-import sys
-from pathlib import Path
-from dotenv import load_dotenv
+from config import TOKEN
+from commands import (
+    giveaway,
+    reroll,
+    list,
+    lock,
+    unlock,
+    bl,
+    wl,
+    reset,
+)
+from keep_alive import keep_alive
 
-# Ajout du chemin de base pour les imports
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-if project_root not in sys.path:
-    sys.path.append(project_root)
+# Intents et bot
+intents = discord.Intents.default()
+intents.guilds = True
+intents.messages = True
+intents.message_content = True
+intents.members = True
 
-# Debug : Vérifiez si le chemin est correctement ajouté
-print(f"Chemin absolu du projet ajouté à sys.path : {project_root}")
-print(f"Chemins dans sys.path : {sys.path}")
+bot = commands.Bot(command_prefix="+", intents=intents)
 
-# Import des modules
-try:
-    from script.discordbot.CAF.config import bot
-    from script.discordbot.CAF.keep_alive import keep_alive
-    from script.discordbot.CAF.commands import *  # Charge les commandes
-except ModuleNotFoundError as e:
-    raise ModuleNotFoundError(f"Erreur lors de l'import des modules : {e}")
+@bot.event
+async def on_ready():
+    print(f'Bot connecté en tant que {bot.user}')
 
-# Charger les variables d'environnement
-dotenv_path = Path(__file__).parent / ".env"
-load_dotenv(dotenv_path=dotenv_path)
+@bot.command()
+async def test(ctx):
+    """Commande pour tester si le bot répond."""
+    await ctx.send("Le bot fonctionne !")
 
-# Vérifiez que le token est disponible
-token = os.getenv('DISCORD_TOKEN')
-if not token:
-    raise ValueError("Le token Discord est introuvable. Vérifiez le fichier .env et la variable DISCORD_TOKEN.")
+@bot.command()
+async def giveaway(ctx, num_winners: int, prize: str, duration: int):
+    await giveaway(ctx, num_winners, prize, duration)
 
-# Garder le bot en ligne
+@bot.command()
+async def reroll(ctx):
+    await reroll(ctx)
+
+@bot.command()
+async def list(ctx):
+    await list(ctx)
+
+@bot.command()
+async def lock(ctx):
+    await lock(ctx)
+
+@bot.command()
+async def unlock(ctx):
+    await unlock(ctx)
+
+@bot.command()
+async def bl(ctx, member: discord.Member):
+    await bl(ctx, member)
+
+@bot.command()
+async def wl(ctx, member: discord.Member):
+    await wl(ctx, member)
+
+@bot.command()
+async def reset(ctx):
+    await reset(ctx)
+
 keep_alive()
-
-# Lancer le bot
-try:
-    bot.run(token)
-except Exception as e:
-    raise RuntimeError(f"Erreur lors du lancement du bot : {e}")
+bot.run(TOKEN)
