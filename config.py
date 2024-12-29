@@ -1,16 +1,10 @@
-from collections import defaultdict
-import discord
-from discord.ext import commands
+# config.py
 
-# Configuration du bot
-intents = discord.Intents.default()
-intents.messages = True
-intents.message_content = True
-intents.guilds = True
-intents.guild_messages = True
-intents.members = True
+import os
+from dotenv import load_dotenv
 
-bot = commands.Bot(command_prefix='+', intents=intents)
+# Charge les variables d'environnement depuis le fichier .env
+load_dotenv()
 
-# Variables globales pour l'anti-spam
-message_logs = defaultdict(list)
+# Récupère le token du bot depuis les variables d'environnement
+TOKEN = os.getenv("DISCORD_TOKEN")
