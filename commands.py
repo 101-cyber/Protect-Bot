@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import random
+from datetime import datetime, timedelta
 
 # Commande: +giveaway
 async def giveaway(ctx, num_winners: int, prize: str, duration: int):
@@ -73,6 +74,7 @@ async def list(ctx):
         **+bl [utilisateur]** : Banni l'utilisateur de façon permanente.
         **+wl [utilisateur]** : Déban l'utilisateur.
         **+reset** : Supprime tous les messages d'un salon.
+        **+snipe** : Réaffiche le dernier message supprimé dans le canal.
         """,
         color=discord.Color.blue()
     )
