@@ -40,77 +40,11 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# Commande: +lock
-@bot.command()
-@commands.has_permissions(manage_roles=True)
-async def lock(ctx):
-    role_name = "+"
-    guild = ctx.guild
-    role = discord.utils.get(guild.roles, name=role_name)
-
-    if role is None:
-        await ctx.send(f"Le rôle `{role_name}` n'existe pas.")
-        return
-
-    overwrites = {
-        guild.default_role: discord.PermissionOverwrite(send_messages=False),
-        role: discord.PermissionOverwrite(send_messages=True),
-    }
-
-    for channel in guild.channels:
-        await channel.set_permissions(target=guild.default_role, overwrite=overwrites[guild.default_role])
-        await channel.set_permissions(target=role, overwrite=overwrites[role])
-
-    await ctx.send("🔒 Salon verrouillé pour les utilisateurs sans le rôle `+`.")
-
-# Commande: +unlock
-@bot.command()
-@commands.has_permissions(manage_roles=True)
-async def unlock(ctx):
-    guild = ctx.guild
-
-    for channel in guild.channels:
-        await channel.set_permissions(target=guild.default_role, overwrite=None)
-
-    await ctx.send("🔓 Salon débloqué pour tout le monde.")
-
-# Commande: +ban
-@bot.command()
-@commands.has_permissions(ban_members=True)
-async def ban(ctx, member: discord.Member, *, reason="Aucune raison spécifiée"):
-    try:
-        await member.ban(reason=reason)
-        await ctx.send(f"🚫 {member.mention} a été banni définitivement. Raison : {reason}")
-    except discord.Forbidden:
-        await ctx.send("❌ Je n'ai pas les permissions nécessaires pour bannir cet utilisateur.")
-    except discord.HTTPException as e:
-        await ctx.send(f"⚠ Une erreur est survenue lors du bannissement : {e}")
-
-# Commande: +reset
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-async def reset(ctx):
-    try:
-        await ctx.channel.purge()
-        await ctx.send("🧹 Tous les messages de ce salon ont été supprimés.", delete_after=5)
-    except discord.Forbidden:
-        await ctx.send("❌ Je n'ai pas les permissions nécessaires pour supprimer les messages.")
-    except discord.HTTPException as e:
-        await ctx.send(f"⚠ Une erreur est survenue lors de la suppression : {e}")
-
 # Commande: +giveaway
 @bot.command()
 @commands.has_permissions(manage_messages=True)
-async def giveaway(ctx, num_winners: str, prize: str, duration: str):
+async def giveaway(ctx, num_winners: int, prize: str, duration: int):
     """Lance un giveaway directement en précisant [gagnants] [lot] [durée (en minutes)]."""
-    # Vérification des arguments
-    try:
-        num_winners = int(num_winners)
-        duration = int(duration)
-    except ValueError:
-        await ctx.send("❌ Les arguments doivent être des nombres valides : `[gagnants] [lot] [durée en minutes]`.")
-        return
-
     if num_winners <= 0 or duration <= 0:
         await ctx.send("❌ Le nombre de gagnants et la durée doivent être des nombres positifs.")
         return
@@ -165,30 +99,19 @@ class GiveawayView(View):
 @commands.has_permissions(manage_messages=True)
 async def reroll(ctx):
     """Tire un gagnant au hasard parmi les participants d'un giveaway actif."""
-    # Vérifiez si un giveaway actif est en cours (vous pouvez améliorer cette logique selon votre implémentation)
-    giveaway_view = GiveawayView.get_active_giveaway(ctx.guild)  # Supposons que vous ayez une méthode pour récupérer un giveaway actif
-    if not giveaway_view or len(giveaway_view.participants) == 0:
-        await ctx.send("❌ Aucun giveaway actif ou aucun participant pour effectuer un reroll.")
-        return
-    
-    winner = random.choice(giveaway_view.participants)
-    await ctx.send(f"🎉 Nouveau gagnant du reroll : <@{winner}> !")
+    # À compléter si vous avez un système de suivi des giveaways actifs
+    await ctx.send("🎉 Fonctionnalité de reroll en cours de mise à jour !")
 
-# Commande: +list (renommé de +help)
+# Commande: +list
 @bot.command()
 async def list(ctx):
     """Affiche la liste des commandes disponibles."""
     embed = discord.Embed(
         title="📜 Liste des commandes disponibles",
-        description="""
-        Voici la liste des commandes que vous pouvez utiliser :
+        description="""Voici la liste des commandes que vous pouvez utiliser :
 
-        **+lock** : Verrouille le salon pour les utilisateurs sans le rôle `+`.
-        **+unlock** : Débloque le salon pour tout le monde.
-        **+ban** : Banni un utilisateur spécifié.
-        **+reset** : Supprime tous les messages dans le salon actuel.
         **+giveaway [gagnants] [lot] [durée en minutes]** : Lance un giveaway.
-        **+reroll** : Retire un gagnant supplémentaire pour un giveaway en cours.
+        **+reroll** : Tire un gagnant supplémentaire pour un giveaway.
         """,
         color=discord.Color.blue()
     )
