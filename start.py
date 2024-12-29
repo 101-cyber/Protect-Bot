@@ -3,15 +3,16 @@ from discord.ext import commands
 import os
 from config import TOKEN
 from commands import (
-    giveaway,
-    reroll,
-    list,
-    lock,
-    unlock,
-    bl,
-    wl,
-    reset,
+    giveaway as giveaway_command,
+    reroll as reroll_command,
+    list as list_command,
+    lock as lock_command,
+    unlock as unlock_command,
+    bl as bl_command,
+    wl as wl_command,
+    reset as reset_command,
 )
+import moderation
 from keep_alive import keep_alive
 
 # Intents et bot
@@ -22,6 +23,8 @@ intents.message_content = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="+", intents=intents)
+
+moderation.setup_moderation(bot)  # Appel de setup_moderation
 
 @bot.event
 async def on_ready():
@@ -34,35 +37,35 @@ async def test(ctx):
 
 @bot.command()
 async def giveaway(ctx, num_winners: int, prize: str, duration: int):
-    await giveaway(ctx, num_winners, prize, duration)
+    await giveaway_command(ctx, num_winners, prize, duration)
 
 @bot.command()
 async def reroll(ctx):
-    await reroll(ctx)
+    await reroll_command(ctx)
 
 @bot.command()
 async def list(ctx):
-    await list(ctx)
+    await list_command(ctx)
 
 @bot.command()
 async def lock(ctx):
-    await lock(ctx)
+    await lock_command(ctx)
 
 @bot.command()
 async def unlock(ctx):
-    await unlock(ctx)
+    await unlock_command(ctx)
 
 @bot.command()
 async def bl(ctx, member: discord.Member):
-    await bl(ctx, member)
+    await bl_command(ctx, member)
 
 @bot.command()
 async def wl(ctx, member: discord.Member):
-    await wl(ctx, member)
+    await wl_command(ctx, member)
 
 @bot.command()
 async def reset(ctx):
-    await reset(ctx)
+    await reset_command(ctx)
 
 keep_alive()
 bot.run(TOKEN)
