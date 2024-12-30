@@ -56,12 +56,12 @@ async def unlock(ctx):
     await unlock_command(ctx)
 
 @bot.command()
-async def bl(ctx, member: discord.Member):
-    await bl_command(ctx, member)
+async def bl(ctx, user_id: int):
+    await bl_command(ctx, user_id)
 
 @bot.command()
-async def wl(ctx, member: discord.Member):
-    await wl_command(ctx, member)
+async def wl(ctx, user_id: int):
+    await wl_command(ctx, user_id)
 
 @bot.command()
 async def reset(ctx):
