@@ -69,12 +69,11 @@ async def list(ctx):
 
         **+giveaway [gagnants] [lot] [durée en minutes]** : Lance un giveaway.
         **+reroll** : Tire un gagnant supplémentaire pour un giveaway.
-        **+lock** : Verrouille le salon pour que seuls les membres avec un rôle spécifique puissent parler.
-        **+unlock** : Déverrouille le salon pour que tout le monde puisse parler.
         **+bl [ID utilisateur]** : Banni l'utilisateur de façon permanente.
         **+wl [ID utilisateur]** : Déban l'utilisateur.
         **+reset** : Supprime tous les messages d'un salon.
-        **+snipe** : Réaffiche le dernier message supprimé dans le canal.
+        **+lock** : Verrouille le salon pour que seuls les membres avec un rôle spécifique puissent parler.
+        **+unlock** : Déverrouille le salon pour que tout le monde puisse parler.
         """,
         color=discord.Color.blue()
     )
@@ -83,12 +82,16 @@ async def list(ctx):
 # Commande: +bl
 async def bl(ctx, user_id: int):
     """Ban permanent l'utilisateur avec l'ID mentionné."""
-    user = ctx.guild.get_member(user_id) or await ctx.guild.fetch_member(user_id)
-    if user:
-        await user.ban(reason="Ban permanent")
+    try:
+        user = await ctx.bot.fetch_user(user_id)
+        await ctx.guild.ban(user, reason="Ban permanent")
         await ctx.send(f"{user.mention} a été banni de manière permanente.")
-    else:
-        await ctx.send(f"❌ Utilisateur avec l'ID `{user_id}` introuvable dans ce serveur.")
+    except discord.NotFound:
+        await ctx.send(f"❌ Utilisateur avec l'ID `{user_id}` introuvable.")
+    except discord.Forbidden:
+        await ctx.send(f"❌ Permissions insuffisantes pour bannir l'utilisateur avec l'ID `{user_id}`.")
+    except Exception as e:
+        await ctx.send(f"❌ Une erreur est survenue : {str(e)}")
 
 # Commande: +wl
 async def wl(ctx, user_id: int):
@@ -109,3 +112,19 @@ async def reset(ctx):
     """Supprime tous les messages d'un salon."""
     await ctx.channel.purge()
     await ctx.send("🧹 Tous les messages du salon ont été supprimés !")
+
+# Commande: +lock
+async def lock(ctx):
+    """Verrouille le salon pour que seuls les membres avec un rôle spécifique puissent parler."""
+    overwrite = ctx.channel.overwrites_for(ctx.guild.default_role)
+    overwrite.send_messages = False
+    await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
+    await ctx.send("🔒 Salon verrouillé avec succès.")
+
+# Commande: +unlock
+async def unlock(ctx):
+    """Déverrouille le salon pour que tout le monde puisse parler."""
+    overwrite = ctx.channel.overwrites_for(ctx.guild.default_role)
+    overwrite.send_messages = True
+    await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
+    await ctx.send("🔓 Salon déverrouillé avec succès.")
