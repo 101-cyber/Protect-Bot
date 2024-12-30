@@ -71,8 +71,8 @@ async def list(ctx):
         **+reroll** : Tire un gagnant supplémentaire pour un giveaway.
         **+lock** : Verrouille le salon pour que seuls les membres avec un rôle spécifique puissent parler.
         **+unlock** : Déverrouille le salon pour que tout le monde puisse parler.
-        **+bl [utilisateur]** : Banni l'utilisateur de façon permanente.
-        **+wl [utilisateur]** : Déban l'utilisateur.
+        **+bl [ID utilisateur]** : Banni l'utilisateur de façon permanente.
+        **+wl [ID utilisateur]** : Déban l'utilisateur.
         **+reset** : Supprime tous les messages d'un salon.
         **+snipe** : Réaffiche le dernier message supprimé dans le canal.
         """,
@@ -80,37 +80,29 @@ async def list(ctx):
     )
     await ctx.send(embed=embed)
 
-# Commande: +lock
-async def lock(ctx):
-    """Verrouille le salon, empêchant les membres sans le rôle spécifié de parler."""
-    role = discord.utils.get(ctx.guild.roles, name="+")
-    if role:
-        await ctx.channel.set_permissions(role, send_messages=True)
-        for member in ctx.guild.members:
-            if role not in member.roles:
-                await ctx.channel.set_permissions(member, send_messages=False)
-        await ctx.send(f"Le salon a été verrouillé. Seuls les membres avec le rôle `{role.name}` peuvent parler.")
-    else:
-        await ctx.send("Le rôle spécifié n'existe pas dans ce serveur.")
-
-# Commande: +unlock
-async def unlock(ctx):
-    """Déverrouille le salon, permettant à tous de parler."""
-    for member in ctx.guild.members:
-        await ctx.channel.set_permissions(member, send_messages=True)
-    await ctx.send("Le salon a été déverrouillé. Tout le monde peut maintenant parler.")
-
 # Commande: +bl
-async def bl(ctx, member: discord.Member):
-    """Ban permanent l'utilisateur mentionné."""
-    await member.ban(reason="Ban permanent")
-    await ctx.send(f"{member.mention} a été banni de manière permanente.")
+async def bl(ctx, user_id: int):
+    """Ban permanent l'utilisateur avec l'ID mentionné."""
+    user = ctx.guild.get_member(user_id) or await ctx.guild.fetch_member(user_id)
+    if user:
+        await user.ban(reason="Ban permanent")
+        await ctx.send(f"{user.mention} a été banni de manière permanente.")
+    else:
+        await ctx.send(f"❌ Utilisateur avec l'ID `{user_id}` introuvable dans ce serveur.")
 
 # Commande: +wl
-async def wl(ctx, member: discord.Member):
-    """Déban l'utilisateur mentionné."""
-    await ctx.guild.unban(member)
-    await ctx.send(f"{member.mention} a été débanni.")
+async def wl(ctx, user_id: int):
+    """Déban l'utilisateur avec l'ID mentionné."""
+    try:
+        user = await ctx.bot.fetch_user(user_id)
+        await ctx.guild.unban(user)
+        await ctx.send(f"{user.mention} a été débanni.")
+    except discord.NotFound:
+        await ctx.send(f"❌ Utilisateur avec l'ID `{user_id}` introuvable ou non banni.")
+    except discord.Forbidden:
+        await ctx.send(f"❌ Permissions insuffisantes pour débannir l'utilisateur avec l'ID `{user_id}`.")
+    except Exception as e:
+        await ctx.send(f"❌ Une erreur est survenue : {str(e)}")
 
 # Commande: +reset
 async def reset(ctx):
